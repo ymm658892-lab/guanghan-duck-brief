@@ -409,6 +409,170 @@
     font-size: 14px;
   }
 
+
+  /* -- duck mascot -- */
+  .duck-stage {
+    position: relative;
+    height: 96px;
+    margin-bottom: 18px;
+  }
+
+  .duck-btn {
+    position: absolute;
+    top: 16px;
+    left: 0;
+    width: 72px;
+    height: 54px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .duck-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 12px;
+  }
+
+  .duck-face, .duck-action, .duck-figure, .duck-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .duck-svg { overflow: visible; }
+
+  .duck-figure { animation: duck-bob 0.55s ease-in-out infinite alternate; }
+  .is-acting .duck-figure { animation-play-state: paused; }
+
+  .duck-leg { transform-box: fill-box; transform-origin: 50% 0%; animation: duck-leg-swing 0.5s ease-in-out infinite alternate; }
+  .duck-leg-front { animation-direction: alternate-reverse; }
+  .is-acting .duck-leg { animation-play-state: paused; }
+
+  .duck-wing { transform-box: fill-box; transform-origin: 80% 20%; animation: duck-wing-idle 1.3s ease-in-out infinite; }
+  .is-acting .duck-wing { animation-play-state: paused; }
+
+  .duck-body, .duck-head, .duck-neck { fill: #FFFDF8; stroke: #2B2118; stroke-width: 2.5; stroke-linejoin: round; }
+  .duck-tail { fill: #FBF7EE; stroke: #2B2118; stroke-width: 2; stroke-linejoin: round; }
+  .duck-wing { fill: #F1E9DA; stroke: #2B2118; stroke-width: 2; }
+  .duck-bill { fill: #F9C43A; stroke: #2B2118; stroke-width: 2.2; stroke-linejoin: round; }
+  .duck-bill-line { stroke: #2B2118; stroke-width: 1.4; }
+  .duck-nostril { fill: #2B2118; }
+  .duck-eye { fill: #221A12; }
+  .duck-eye-glint { fill: #FFFFFF; }
+  .duck-leg-stub { stroke: #F5B731; stroke-width: 3.5; stroke-linecap: round; fill: none; }
+  .duck-foot { fill: #F5B731; stroke: #2B2118; stroke-width: 1.5; }
+
+  .acc { display: none; }
+  .duck-svg.wear-partyhat .acc-partyhat,
+  .duck-svg.wear-scarf .acc-scarf,
+  .duck-svg.wear-sunglasses .acc-sunglasses,
+  .duck-svg.wear-umbrella .acc-umbrella,
+  .duck-svg.wear-bowtie .acc-bowtie,
+  .duck-svg.wear-flag .acc-flag,
+  .duck-svg.wear-santahat .acc-santahat,
+  .duck-svg.wear-mask .acc-mask,
+  .duck-svg.wear-gradcap .acc-gradcap {
+    display: inline;
+  }
+
+  @keyframes duck-bob {
+    from { transform: translateY(0); }
+    to { transform: translateY(-6px); }
+  }
+  @keyframes duck-leg-swing {
+    from { transform: rotate(-12deg); }
+    to { transform: rotate(12deg); }
+  }
+  @keyframes duck-wing-idle {
+    0%, 100% { transform: rotate(-6deg); }
+    50% { transform: rotate(10deg); }
+  }
+
+  .duck-action.action-jump { animation: duck-action-jump 0.9s ease-in-out; }
+  .duck-action.action-spin { animation: duck-action-spin 0.8s ease-in-out; }
+  .duck-action.action-bow { animation: duck-action-bow 1.1s ease-in-out; }
+  .duck-action.action-wave { animation: duck-action-wave 1.2s ease-in-out; }
+  .duck-action.action-shiver { animation: duck-action-shiver 0.8s ease-in-out; }
+  .duck-action.action-salute { animation: duck-action-salute 1.1s ease-in-out; }
+  .duck-action.action-dance { animation: duck-action-dance 1.3s ease-in-out; }
+
+  @keyframes duck-action-jump {
+    0% { transform: translateY(0) rotate(0); }
+    35% { transform: translateY(-20px) rotate(-8deg); }
+    60% { transform: translateY(-20px) rotate(6deg); }
+    100% { transform: translateY(0) rotate(0); }
+  }
+  @keyframes duck-action-spin {
+    from { transform: rotate(0); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes duck-action-bow {
+    0%, 100% { transform: rotate(0); }
+    50% { transform: rotate(24deg); }
+  }
+  @keyframes duck-action-wave {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    25% { transform: translateY(-4px) rotate(-5deg); }
+    75% { transform: translateY(-4px) rotate(5deg); }
+  }
+  @keyframes duck-action-shiver {
+    0%, 100% { transform: translateX(0) rotate(0); }
+    20% { transform: translateX(-3px) rotate(-3deg); }
+    40% { transform: translateX(3px) rotate(3deg); }
+    60% { transform: translateX(-3px) rotate(-2deg); }
+    80% { transform: translateX(3px) rotate(2deg); }
+  }
+  @keyframes duck-action-salute {
+    0%, 100% { transform: translateY(0); }
+    40%, 60% { transform: translateY(-6px); }
+  }
+  @keyframes duck-action-dance {
+    0%, 100% { transform: translateX(0) rotate(0); }
+    25% { transform: translateX(-5px) rotate(-9deg); }
+    50% { transform: translateX(0) rotate(0); }
+    75% { transform: translateX(5px) rotate(9deg); }
+  }
+
+  .duck-bubble {
+    position: absolute;
+    top: -58px;
+    max-width: 208px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--ink);
+    box-shadow: var(--shadow);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .duck-bubble.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .duck-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 20px;
+    width: 10px;
+    height: 10px;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    transform: rotate(45deg);
+  }
+
 </style>
 </head>
 <body>
@@ -431,6 +595,92 @@
   <div class="tldr">
     <span class="tag">TL;DR</span>
     <span id="tldr-text">載入中．．．</span>
+  </div>
+
+  <div class="duck-stage" id="duck-stage">
+    <button type="button" class="duck-btn" id="duck-pos" aria-label="點擊小鴨，看今天的訊息">
+      <div class="duck-face" id="duck-face">
+        <div class="duck-action" id="duck-action">
+          <div class="duck-figure">
+            <svg id="duck-svg" class="duck-svg" viewBox="0 0 120 100" aria-hidden="true">
+              <path class="duck-tail" d="M16,56 Q0,46 4,62 Q12,60 16,56 Z"/>
+              <path class="duck-tail" d="M20,48 Q8,36 10,54 Q16,52 20,48 Z"/>
+              <g class="duck-leg duck-leg-back">
+                <path class="duck-leg-stub" d="M46,92 L46,100"/>
+                <path class="duck-foot" d="M38,103 Q46,96 54,103 Q46,107 38,103 Z"/>
+              </g>
+              <g class="duck-leg duck-leg-front">
+                <path class="duck-leg-stub" d="M62,92 L62,100"/>
+                <path class="duck-foot" d="M54,103 Q62,96 70,103 Q62,107 54,103 Z"/>
+              </g>
+              <ellipse class="duck-body" cx="46" cy="72" rx="32" ry="24"/>
+              <g class="duck-wing">
+                <path d="M30,58 C44,61 46,82 28,86 C18,83 16,64 30,58 Z"/>
+              </g>
+              <path class="duck-neck" d="M54,54 C58,46 62,40 68,36 C75,39 76,45 72,50 C67,55 62,58 60,63 Z"/>
+              <circle class="duck-head" cx="78" cy="32" r="17"/>
+              <path class="duck-bill" d="M91,25 Q119,23 121,32 Q119,40 91,38 Z"/>
+              <line class="duck-bill-line" x1="92" y1="32" x2="120" y2="32"/>
+              <circle class="duck-nostril" cx="109" cy="28" r="1"/>
+              <circle class="duck-eye" cx="83" cy="26" r="2.8"/>
+              <circle class="duck-eye-glint" cx="84.2" cy="24.8" r="0.9"/>
+
+              <g class="acc acc-partyhat">
+                <polygon points="63,19 95,19 78,-9" fill="#8854D0" stroke="#2B2118" stroke-width="1.5"/>
+                <circle cx="78" cy="-9" r="4.5" fill="#F0B94B" stroke="#2B2118" stroke-width="1"/>
+                <circle cx="70" cy="7" r="2" fill="#F0B94B"/>
+                <circle cx="86" cy="5" r="2" fill="#F0B94B"/>
+              </g>
+
+              <g class="acc acc-santahat">
+                <polygon points="61,21 97,21 80,-11" fill="#D6453D" stroke="#2B2118" stroke-width="1.5"/>
+                <ellipse cx="78" cy="20" rx="16" ry="5.5" fill="#FFFFFF" stroke="#2B2118" stroke-width="1"/>
+                <circle cx="80" cy="-11" r="5.5" fill="#FFFFFF" stroke="#2B2118" stroke-width="1"/>
+              </g>
+
+              <g class="acc acc-gradcap">
+                <polygon points="54,15 78,3 102,15 78,27" fill="#23262B"/>
+                <rect x="71" y="17" width="14" height="9" fill="#23262B"/>
+                <line x1="102" y1="15" x2="105" y2="29" stroke="#F0B94B" stroke-width="2"/>
+                <circle cx="105" cy="30" r="2" fill="#F0B94B"/>
+              </g>
+
+              <g class="acc acc-sunglasses">
+                <ellipse cx="72" cy="25" rx="8" ry="6.5" fill="#23262B"/>
+                <ellipse cx="89" cy="24" rx="7" ry="5.8" fill="#23262B"/>
+                <line x1="80" y1="24" x2="83" y2="23.5" stroke="#23262B" stroke-width="2"/>
+              </g>
+
+              <g class="acc acc-mask">
+                <rect x="89" y="29" width="26" height="15" rx="7" fill="#EAF2FF" stroke="#2B2118" stroke-width="1.2"/>
+              </g>
+
+              <g class="acc acc-scarf">
+                <path d="M38,52 Q58,66 78,54 L75,66 Q56,74 40,64 Z" fill="#2F6E51" stroke="#2B2118" stroke-width="1.2"/>
+                <path d="M48,62 L40,84 L54,72 Z" fill="#2F6E51" stroke="#2B2118" stroke-width="1.2"/>
+              </g>
+
+              <g class="acc acc-bowtie">
+                <polygon points="50,54 60,59 50,64" fill="#2C4A7C" stroke="#2B2118" stroke-width="1"/>
+                <polygon points="70,54 60,59 70,64" fill="#2C4A7C" stroke="#2B2118" stroke-width="1"/>
+                <rect x="57" y="56" width="6" height="6" fill="#F0B94B"/>
+              </g>
+
+              <g class="acc acc-flag">
+                <line x1="6" y1="86" x2="6" y2="40" stroke="#F9C43A" stroke-width="2.2"/>
+                <polygon points="6,40 28,47 6,54" fill="#E4572E" stroke="#2B2118" stroke-width="1"/>
+              </g>
+
+              <g class="acc acc-umbrella">
+                <path d="M10,36 A28,22 0 0 1 70,36 Z" fill="#4C6EF5" stroke="#2B2118" stroke-width="1.5"/>
+                <path d="M40,36 L40,64 Q40,70 34,70" stroke="#2B2118" stroke-width="2" fill="none"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </button>
+    <div class="duck-bubble" id="duck-bubble" role="status" aria-live="polite"></div>
   </div>
 
   <section class="module markets">
@@ -1146,6 +1396,10 @@
 }
 </script>
 
+<script type="application/json" id="mascot-today">
+{"pending": true}
+</script>
+
 <script>
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, function(c) {
@@ -1230,6 +1484,129 @@ document.getElementById('slot-select').addEventListener('change', function(e) {
 });
 
 loadSlot(getDefaultSlot());
+
+(function () {
+  var stage = document.getElementById('duck-stage');
+  var pos = document.getElementById('duck-pos');
+  var face = document.getElementById('duck-face');
+  var actionEl = document.getElementById('duck-action');
+  var svg = document.getElementById('duck-svg');
+  var bubble = document.getElementById('duck-bubble');
+  if (!stage || !pos || !face || !actionEl || !svg || !bubble) {
+    console.error('duck mascot: missing DOM element(s), aborting init', {stage: !!stage, pos: !!pos, face: !!face, actionEl: !!actionEl, svg: !!svg, bubble: !!bubble});
+    return;
+  }
+  var ACTIONS = ['jump', 'spin', 'bow', 'wave', 'shiver', 'salute', 'dance'];
+  var WALK_SPEED = 55; // px/sec
+  var dir = 1;
+  var x = 0;
+  var walking = false;
+  var mascotData = null;
+  var bubbleTimer = null;
+
+  function duckWidth() { return pos.offsetWidth || 72; }
+  function maxX() { return Math.max(0, stage.offsetWidth - duckWidth()); }
+
+  function currentX() {
+    var cs = getComputedStyle(pos).transform;
+    if (!cs || cs === 'none') return x;
+    var m = cs.match(/matrix\(([^)]+)\)/);
+    if (!m) return x;
+    var parts = m[1].split(',');
+    return parseFloat(parts[4]) || 0;
+  }
+
+  function stepTo(targetX) {
+    var dist = Math.abs(targetX - x);
+    var duration = Math.max(1.2, dist / WALK_SPEED);
+    face.style.transform = 'scaleX(' + dir + ')';
+    pos.style.transition = 'transform ' + duration + 's linear';
+    pos.style.transform = 'translateX(' + targetX + 'px)';
+    x = targetX;
+  }
+
+  function walkNext() {
+    if (!walking) return;
+    var target = dir === 1 ? maxX() : 0;
+    if (Math.abs(target - x) < 1) { dir *= -1; target = dir === 1 ? maxX() : 0; }
+    stepTo(target);
+  }
+
+  pos.addEventListener('transitionend', function (e) {
+    if (e.propertyName !== 'transform' || !walking) return;
+    dir *= -1;
+    walkNext();
+  });
+
+  function startWalking() {
+    walking = true;
+    walkNext();
+  }
+
+  window.addEventListener('resize', function () {
+    x = Math.min(currentX(), maxX());
+    if (walking) walkNext();
+  });
+
+  function playAction(name) {
+    if (ACTIONS.indexOf(name) === -1) name = 'jump';
+    var freezeX = currentX();
+    walking = false;
+    pos.style.transition = 'none';
+    pos.style.transform = 'translateX(' + freezeX + 'px)';
+    x = freezeX;
+    stage.classList.add('is-acting');
+    actionEl.className = 'duck-action';
+    void actionEl.offsetWidth;
+    actionEl.className = 'duck-action action-' + name;
+    var onDone = function () {
+      actionEl.removeEventListener('animationend', onDone);
+      actionEl.className = 'duck-action';
+      stage.classList.remove('is-acting');
+      startWalking();
+    };
+    actionEl.addEventListener('animationend', onDone);
+  }
+
+  function showBubble(text) {
+    bubble.textContent = text;
+    bubble.style.left = Math.max(0, Math.min(x, maxX())) + 'px';
+    bubble.classList.add('is-visible');
+    requestAnimationFrame(function () {
+      var bw = bubble.offsetWidth;
+      var maxLeft = stage.offsetWidth - bw - 4;
+      if (parseFloat(bubble.style.left) > maxLeft) {
+        bubble.style.left = Math.max(0, maxLeft) + 'px';
+      }
+    });
+    clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(function () {
+      bubble.classList.remove('is-visible');
+    }, 5000);
+  }
+
+  function loadMascot() {
+    var el = document.getElementById('mascot-today');
+    var data = null;
+    try { data = JSON.parse(el.textContent); } catch (e) { data = null; }
+    if (!data || data.pending) { mascotData = null; svg.setAttribute('class', 'duck-svg'); return; }
+    mascotData = data;
+    var wearClasses = (Array.isArray(data.outfit) ? data.outfit : []).map(function (name) {
+      return 'wear-' + name;
+    });
+    svg.setAttribute('class', 'duck-svg ' + wearClasses.join(' '));
+  }
+
+  pos.addEventListener('click', function () {
+    var action = (mascotData && mascotData.action) || 'jump';
+    var message = (mascotData && mascotData.message) || '今天也要好好加油，通勤路上小心喔！';
+    playAction(action);
+    showBubble(message);
+  });
+
+  loadMascot();
+  startWalking();
+})();
 </script>
 </body>
 </html>
