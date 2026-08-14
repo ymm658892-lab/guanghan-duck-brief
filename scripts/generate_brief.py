@@ -221,13 +221,18 @@ def call_gemini_once(prompt, api_key, model):
     }).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=150) as resp:
             raw = json.loads(resp.read())
     except urllib.error.HTTPError as e:
         err_body = e.read().decode("utf-8", "replace")[:800]
         raise RuntimeError(f"Gemini API error {e.code}: {err_body}")
-    text = raw["candidates"][0]["content"]["parts"][0]["text"]
-    return json.loads(text)
+    except Exception as e:
+        raise RuntimeError(f"Gemini request failed: {e!r}")
+    try:
+        text = raw["candidates"][0]["content"]["parts"][0]["text"]
+        return json.loads(text)
+    except Exception as e:
+        raise RuntimeError(f"Gemini response parse failed: {e!r}; raw={json.dumps(raw)[:500]}")
 
 
 def call_gemini(prompt, api_key, forced_model=None):
@@ -237,7 +242,7 @@ def call_gemini(prompt, api_key, forced_model=None):
         try:
             print(f"  trying model: {model}")
             return call_gemini_once(prompt, api_key, model), model
-        except RuntimeError as e:
+        except Exception as e:
             last_err = e
             print(f"  model {model} failed: {e}")
     raise RuntimeError(f"All Gemini models failed. Last error: {last_err}")
