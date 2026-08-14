@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -11,11 +12,17 @@ from datetime import datetime, timedelta, timezone
 TAIPEI = timezone(timedelta(hours=8))
 INDEX_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "index.html")
 
-QUERIES = {
-    "markets": "台股 OR 台積電 OR 台灣股市 OR 台指期",
-    "robotics": "機器人 OR 人形機器人 OR 機器人產業 OR 自動化",
-    "tech": "AI晶片 OR 半導體 OR 科技產業 OR 輝達 OR NVIDIA",
+DIRECT_FEEDS = {
+    "markets": {"url": "https://feeds.feedburner.com/rsscna/finance", "fallback_source": "中央社"},
+    "tech": {"url": "https://technews.tw/feed/", "fallback_source": "科技新報"},
 }
+
+ROBOTICS_QUERY = "機器人 OR 人形機器人 OR 機器人產業 OR 協作機器人 OR 自動化設備"
+ROBOTICS_KEYWORDS = ["機器人", "人形", "機械臂", "協作機器人", "仿生", "cobot", "humanoid", "Robot", "無人機", "自駕"]
+ROBOTICS_FALLBACK_FEEDS = [
+    {"url": "https://technews.tw/feed/", "fallback_source": "科技新報"},
+    {"url": "https://www.ithome.com.tw/rss", "fallback_source": "iThome"},
+]
 
 TILES = [
     {"symbol": "%5ETWII", "label": "台股加權指數"},
@@ -29,7 +36,7 @@ WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"]
 MASCOT_ACTIONS = ["jump", "spin", "bow", "wave", "shiver", "salute", "dance"]
 
 
-def http_get(url, headers=None, timeout=20, retries=3):
+def http_get(url, headers=None, timeout=20, retries=3, backoff_base=4):
     headers = headers or {}
     headers.setdefault("User-Agent", "Mozilla/5.0 (compatible; GuanghanDuckBrief/1.0)")
     last_err = None
@@ -43,16 +50,26 @@ def http_get(url, headers=None, timeout=20, retries=3):
             last_err = f"{e.code} {e.reason}: {body}"
         except Exception as e:
             last_err = e
+        if attempt < retries - 1:
+            time.sleep(backoff_base * (attempt + 1))
     raise RuntimeError(f"GET failed after {retries} tries: {url} ({last_err})")
 
 
-def fetch_news(query, limit=8, max_age_hours=30):
-    url = "https://news.google.com/rss/search?" + urllib.parse.urlencode(
-        {"q": query, "hl": "zh-TW", "gl": "TW", "ceid": "TW:zh-Hant"}
-    )
-    data = http_get(url)
+def parse_pubdate(raw):
+    raw = raw.strip()
+    for fmt in ("%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S %Z", "%Y-%m-%d %H:%M:%S"):
+        try:
+            dt = datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=TAIPEI)
+        return dt.astimezone(timezone.utc)
+    return None
+
+
+def parse_rss_items(data):
     root = ET.fromstring(data)
-    now = datetime.now(timezone.utc)
     items = []
     for item in root.iter("item"):
         title = (item.findtext("title") or "").strip()
@@ -62,30 +79,80 @@ def fetch_news(query, limit=8, max_age_hours=30):
         source_name = (source_el.text or "").strip() if source_el is not None else ""
         if not title or not link:
             continue
-        try:
-            pub_dt = datetime.strptime(pub_raw, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)
-        except Exception:
+        pub_dt = parse_pubdate(pub_raw)
+        if pub_dt is None:
             continue
-        age_hours = (now - pub_dt).total_seconds() / 3600
-        if age_hours > max_age_hours or age_hours < 0:
-            continue
-        clean_title = re.sub(r"\s*-\s*" + re.escape(source_name) + r"$", "", title) if source_name else title
-        items.append({
-            "title": clean_title,
-            "link": link,
-            "source": source_name or "未知來源",
-            "pubDate": pub_dt.isoformat(),
-        })
-    items.sort(key=lambda x: x["pubDate"], reverse=True)
-    seen_titles = set()
-    deduped = []
+        items.append({"title": title, "link": link, "source": source_name, "pub_dt": pub_dt})
+    return items
+
+
+def dedupe_and_filter(items, max_age_hours, fallback_source, limit):
+    now = datetime.now(timezone.utc)
+    filtered = []
     for it in items:
-        key = it["title"][:12]
-        if key in seen_titles:
+        age_hours = (now - it["pub_dt"]).total_seconds() / 3600
+        if age_hours > max_age_hours or age_hours < -1:
             continue
-        seen_titles.add(key)
+        title = it["title"]
+        source = it["source"] or fallback_source
+        clean_title = re.sub(r"\s*[-|]\s*" + re.escape(source) + r"$", "", title) if source else title
+        filtered.append({
+            "title": clean_title,
+            "link": it["link"],
+            "source": source,
+            "pubDate": it["pub_dt"].isoformat(),
+        })
+    filtered.sort(key=lambda x: x["pubDate"], reverse=True)
+    seen = set()
+    deduped = []
+    for it in filtered:
+        key = it["title"][:12]
+        if key in seen:
+            continue
+        seen.add(key)
         deduped.append(it)
     return deduped[:limit]
+
+
+def fetch_google_news(query, limit=8, max_age_hours=30):
+    url = "https://news.google.com/rss/search?" + urllib.parse.urlencode(
+        {"q": query, "hl": "zh-TW", "gl": "TW", "ceid": "TW:zh-Hant"}
+    )
+    data = http_get(url, retries=4, backoff_base=6)
+    items = parse_rss_items(data)
+    return dedupe_and_filter(items, max_age_hours, "", limit)
+
+
+def fetch_direct_feed(feed_conf, limit=10, max_age_hours=30):
+    data = http_get(feed_conf["url"], retries=3, backoff_base=4)
+    items = parse_rss_items(data)
+    return dedupe_and_filter(items, max_age_hours, feed_conf["fallback_source"], limit)
+
+
+def fetch_robotics_candidates(limit=8, max_age_hours=30):
+    try:
+        items = fetch_google_news(ROBOTICS_QUERY, limit=limit, max_age_hours=max_age_hours)
+    except Exception as e:
+        print(f"  Google News robotics search failed: {e}")
+        items = []
+
+    if len(items) < 5:
+        print(f"  Only {len(items)} from Google News, supplementing with keyword-filtered direct feeds...")
+        extra = []
+        for feed_conf in ROBOTICS_FALLBACK_FEEDS:
+            try:
+                raw = fetch_direct_feed(feed_conf, limit=40, max_age_hours=72)
+            except Exception as e:
+                print(f"  fallback feed {feed_conf['url']} failed: {e}")
+                continue
+            extra.extend(r for r in raw if any(k in r["title"] for k in ROBOTICS_KEYWORDS))
+        seen_titles = {it["title"][:12] for it in items}
+        for it in extra:
+            key = it["title"][:12]
+            if key not in seen_titles:
+                seen_titles.add(key)
+                items.append(it)
+    return items[:limit]
 
 
 def fetch_indicator(symbol):
@@ -199,10 +266,12 @@ def build_prompt(slot, date_str, candidates, tiles, prev_mascot_message, allow_o
         '不要輸出 outfit 欄位(這個時段不能改動鴨子服裝)。'
     )
 
+    pick_counts = {cat: min(5, len(candidates[cat])) for cat in ("markets", "robotics", "tech")}
+
     return f"""你是「光漢小鴨早晨速報」的內容編輯，服務對象是通勤族，語氣輕鬆但專業，繁體中文台灣用語。
 現在是{slot_context}，日期是{date_str}。
 
-以下是這個時段從新聞來源實際抓到的候選新聞(只有標題/來源，沒有全文)，請你從每個分類選出最重要的5則，並幫每則寫出：
+以下是這個時段從新聞來源實際抓到的候選新聞(只有標題/來源，沒有全文)，請你從每個分類選出最重要的幾則(markets選{pick_counts['markets']}則、robotics選{pick_counts['robotics']}則、tech選{pick_counts['tech']}則，數量必須剛好符合)，並幫每則寫出：
 - title: 可直接沿用或小幅潤飾原標題(不能改變原意)
 - teaser: 8~14字的精簡副標
 - full: 依據標題與常識，寫2~3句、約80~120字的白話說明(不要編造原文沒有的具體數字或引言，只做合理的脈絡解讀)
@@ -229,9 +298,9 @@ def build_prompt(slot, date_str, candidates, tiles, prev_mascot_message, allow_o
   "tldr": "一句話總結今天最重要的事，40~60字",
   "indicators_note": "說明這4格指標代表什麼，30~50字",
   "picks": {{
-    "markets": [{{"idx": 0, "title": "...", "teaser": "...", "full": "...", "think": "...", "question": "..."}}, ... 共5則],
-    "robotics": [... 共5則],
-    "tech": [... 共5則]
+    "markets": [{{"idx": 0, "title": "...", "teaser": "...", "full": "...", "think": "...", "question": "..."}}, ... 共{pick_counts['markets']}則],
+    "robotics": [... 共{pick_counts['robotics']}則],
+    "tech": [... 共{pick_counts['tech']}則]
   }},
   "mascot": {{"action": "...", "message": "...", "outfit": [...]}}
 }}
@@ -292,12 +361,19 @@ def main():
 
     print(f"[1/5] Fetching news candidates for slot {slot}...")
     candidates = {}
-    for cat, q in QUERIES.items():
-        items = fetch_news(q, limit=8)
+    for cat, feed_conf in DIRECT_FEEDS.items():
+        items = fetch_direct_feed(feed_conf, limit=10, max_age_hours=30)
         if len(items) < 5:
             raise RuntimeError(f"Not enough fresh news for category {cat}: only {len(items)} items")
         candidates[cat] = items
         print(f"  {cat}: {len(items)} candidates")
+
+    print("  robotics: fetching (Google News + fallback feeds)...")
+    robotics_items = fetch_robotics_candidates(limit=8, max_age_hours=30)
+    if len(robotics_items) < 3:
+        raise RuntimeError(f"Not enough fresh news for category robotics: only {len(robotics_items)} items")
+    candidates["robotics"] = robotics_items
+    print(f"  robotics: {len(robotics_items)} candidates")
 
     print("[2/5] Fetching market indicators...")
     tiles = build_indicators()
@@ -317,8 +393,9 @@ def main():
     modules = {}
     for cat in ("markets", "robotics", "tech"):
         picks = result["picks"][cat]
-        if len(picks) != 5:
-            raise RuntimeError(f"Gemini returned {len(picks)} picks for {cat}, expected 5")
+        expected = min(5, len(candidates[cat]))
+        if len(picks) != expected:
+            raise RuntimeError(f"Gemini returned {len(picks)} picks for {cat}, expected {expected}")
         used_idx = set()
         items = []
         for p in picks:
