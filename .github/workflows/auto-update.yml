@@ -1,0 +1,77 @@
+name: Auto Update Brief
+
+on:
+  schedule:
+    - cron: "30 23 * * *"  # 07:30 Asia/Taipei
+    - cron: "0 5 * * *"    # 13:00 Asia/Taipei
+    - cron: "0 12 * * *"   # 20:00 Asia/Taipei
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "Slot to update (manual test)"
+        required: true
+        type: choice
+        options:
+          - "0730"
+          - "1300"
+          - "2000"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-update-brief
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Determine slot
+        id: slot
+        run: |
+          case "${{ github.event.schedule }}" in
+            "30 23 * * *") echo "slot=0730" >> "$GITHUB_OUTPUT" ;;
+            "0 5 * * *") echo "slot=1300" >> "$GITHUB_OUTPUT" ;;
+            "0 12 * * *") echo "slot=2000" >> "$GITHUB_OUTPUT" ;;
+            *) echo "slot=${{ github.event.inputs.slot }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Generate brief
+        env:
+          SLOT: ${{ steps.slot.outputs.slot }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+        run: python3 scripts/generate_brief.py
+
+      - name: Commit and push
+        env:
+          SLOT: ${{ steps.slot.outputs.slot }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- index.html; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git add index.html
+          git commit -m "Auto-update ${SLOT} $(date -u '+%Y-%m-%d')"
+          for i in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "Push succeeded"
+              exit 0
+            fi
+            echo "Push failed, retrying after pull --rebase ($i)"
+            git pull --rebase origin main
+            sleep 5
+          done
+          echo "Push failed after retries"
+          exit 1
