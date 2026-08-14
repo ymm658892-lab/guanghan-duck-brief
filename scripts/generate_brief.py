@@ -38,6 +38,9 @@ def http_get(url, headers=None, timeout=20, retries=3):
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return resp.read()
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", "replace")[:500]
+            last_err = f"{e.code} {e.reason}: {body}"
         except Exception as e:
             last_err = e
     raise RuntimeError(f"GET failed after {retries} tries: {url} ({last_err})")
@@ -121,6 +124,26 @@ def build_indicators():
     return tiles
 
 
+def pick_model(api_key):
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    data = json.loads(http_get(url, timeout=20, retries=3))
+    names = []
+    for m in data.get("models", []):
+        methods = m.get("supportedGenerationMethods", [])
+        name = m.get("name", "")
+        if "generateContent" in methods and "flash" in name.lower():
+            names.append(name.split("/")[-1])
+    if not names:
+        raise RuntimeError("No usable Gemini flash model found via ListModels")
+
+    def rank(n):
+        bad = any(x in n for x in ("exp", "preview", "8b", "thinking", "lite", "image", "tts"))
+        return (bad, n)
+
+    names.sort(key=rank)
+    return names[0]
+
+
 def call_gemini(prompt, api_key, model):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     body = json.dumps({
@@ -128,8 +151,12 @@ def call_gemini(prompt, api_key, model):
         "generationConfig": {"responseMimeType": "application/json", "temperature": 0.7},
     }).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        raw = json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            raw = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", "replace")[:800]
+        raise RuntimeError(f"Gemini API error {e.code}: {err_body}")
     text = raw["candidates"][0]["content"]["parts"][0]["text"]
     return json.loads(text)
 
@@ -243,7 +270,7 @@ def main():
     if not api_key:
         print("Missing GEMINI_API_KEY env var", file=sys.stderr)
         sys.exit(1)
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    model = os.environ.get("GEMINI_MODEL") or None
 
     now = datetime.now(TAIPEI)
     date_str = f"{now.month}月{now.day}日．週{WEEKDAYS[now.weekday()]}"
@@ -266,7 +293,9 @@ def main():
 
     allow_outfit = slot == "0730"
 
-    print("[3/5] Calling Gemini...")
+    if not model:
+        model = pick_model(api_key)
+    print(f"[3/5] Calling Gemini (model={model})...")
     prompt = build_prompt(slot, date_str, candidates, tiles, prev_message, allow_outfit)
     result = call_gemini(prompt, api_key, model)
 
