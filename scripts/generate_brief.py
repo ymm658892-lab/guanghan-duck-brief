@@ -124,7 +124,7 @@ def build_indicators():
     return tiles
 
 
-def pick_model(api_key):
+def candidate_models(api_key):
     url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
     data = json.loads(http_get(url, timeout=20, retries=3))
     names = []
@@ -136,15 +136,17 @@ def pick_model(api_key):
     if not names:
         raise RuntimeError("No usable Gemini flash model found via ListModels")
 
-    def rank(n):
+    def version_key(n):
+        m = re.search(r"gemini-(\d+(?:\.\d+)?)", n)
+        ver = float(m.group(1)) if m else 0.0
         bad = any(x in n for x in ("exp", "preview", "8b", "thinking", "lite", "image", "tts"))
-        return (bad, n)
+        return (bad, -ver, n)
 
-    names.sort(key=rank)
-    return names[0]
+    names.sort(key=version_key)
+    return names
 
 
-def call_gemini(prompt, api_key, model):
+def call_gemini_once(prompt, api_key, model):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
@@ -159,6 +161,19 @@ def call_gemini(prompt, api_key, model):
         raise RuntimeError(f"Gemini API error {e.code}: {err_body}")
     text = raw["candidates"][0]["content"]["parts"][0]["text"]
     return json.loads(text)
+
+
+def call_gemini(prompt, api_key, forced_model=None):
+    models = [forced_model] if forced_model else candidate_models(api_key)
+    last_err = None
+    for model in models:
+        try:
+            print(f"  trying model: {model}")
+            return call_gemini_once(prompt, api_key, model), model
+        except RuntimeError as e:
+            last_err = e
+            print(f"  model {model} failed: {e}")
+    raise RuntimeError(f"All Gemini models failed. Last error: {last_err}")
 
 
 def build_prompt(slot, date_str, candidates, tiles, prev_mascot_message, allow_outfit):
@@ -293,11 +308,10 @@ def main():
 
     allow_outfit = slot == "0730"
 
-    if not model:
-        model = pick_model(api_key)
-    print(f"[3/5] Calling Gemini (model={model})...")
+    print("[3/5] Calling Gemini...")
     prompt = build_prompt(slot, date_str, candidates, tiles, prev_message, allow_outfit)
-    result = call_gemini(prompt, api_key, model)
+    result, used_model = call_gemini(prompt, api_key, model)
+    print(f"  used model: {used_model}")
 
     print("[4/5] Assembling slot JSON...")
     modules = {}
