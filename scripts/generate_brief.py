@@ -32,6 +32,7 @@ TILES = [
 ]
 
 WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"]
+SLOT_ANCHOR = {"0730": (7, 30), "1300": (13, 0), "2000": (20, 0)}
 
 MASCOT_ACTIONS = ["jump", "spin", "bow", "wave", "shiver", "salute", "dance"]
 
@@ -362,7 +363,14 @@ def main():
     model = os.environ.get("GEMINI_MODEL") or None
 
     now = datetime.now(TAIPEI)
-    date_str = f"{now.month}月{now.day}日．週{WEEKDAYS[now.weekday()]}"
+    anchor_hour, anchor_minute = SLOT_ANCHOR[slot]
+    slot_date = now.replace(hour=anchor_hour, minute=anchor_minute, second=0, microsecond=0)
+    if slot_date > now:
+        # This run is a delayed catch-up for the previous day's slot (GH Actions
+        # scheduled runs can lag hours behind their cron trigger, sometimes past
+        # local midnight) — label it with the slot's intended date, not today's.
+        slot_date -= timedelta(days=1)
+    date_str = f"{slot_date.month}月{slot_date.day}日．週{WEEKDAYS[slot_date.weekday()]}"
 
     print(f"[1/5] Fetching news candidates for slot {slot}...")
     candidates = {}
